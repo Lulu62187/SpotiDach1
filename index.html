@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SpotiDach</title>
+    <link rel="stylesheet" href="assets/style.css">
+    <style>
+        /* Styles pour le bandeau */
+        #bandeau {
+            background-color: #333;
+            color: white;
+            padding: 10px;
+            text-align: center;
+        }
+
+        /* Styles pour la barre de recherche */
+        #barre-recherche {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        #barre-recherche input[type="text"] {
+            padding: 8px;
+            width: 300px;
+            border-radius: 5px;
+            border: none;
+            font-size: 16px;
+        }
+
+        #barre-recherche input[type="submit"] {
+            background-color: #074075;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 8px 16px;
+            margin-left: 10px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        #barre-recherche input[type="submit"]:hover {
+            background-color: #22cfb8;
+        }
+    </style>
+</head>
+<body>
+    <div id="bandeau">
+        <h1>SpotiDach</h1>
+    </div>
+    <div id="barre-recherche">
+        <form id="formRecherche">
+            <input type="text" id="rechercheInput" placeholder="Rechercher...">
+            <input type="submit" value="Rechercher">
+        </form>
+    </div>
+    <ul id="playlist">
+        <!-- Loop js dynamique -->
+    </ul>
+    <div id="disque-container">
+        <div class="disque pause" id="disque">
+            <!-- Image par défaut -->
+            <img class="vinyle pause" id="vinyle" src="assets/pictures/vinyle3_2.png" alt="Disque Vinyle">
+            <!-- Image par défaut -->
+            <img class="cover pause" id="cover" src="uploads/covers/1.jpeg" alt="Cover">
+        </div>
+        <audio id="lecteur" controls src=""></audio>
+        <button id="btnRandom">Aléatoire</button> <!-- Bouton aléatoire -->
+    </div>
+    <script src="assets/js/app.js" defer></script>
+    <script>
+        const playlist = document.getElementById("playlist");
+        const lecteur = document.querySelector("#lecteur");
+        const cover = document.getElementById("cover");
+        const disque = document.getElementById("disque");
+        const btnRandom = document.getElementById("btnRandom");
+        let dbMusic; // Déclarer dbMusic en tant que variable globale
+
+        const config = {
+            urlCover: "uploads/covers/",
+            urlSound: "uploads/musics/",
+        }
+
+        const getData = async () => {
+            const req = await fetch("./assets/js/data.json")
+            dbMusic = await req.json(); // Utiliser dbMusic sans le mot-clé 'const'
+
+            dbMusic.forEach((music) => {
+                playlist.innerHTML += `<li id="${music.id}"><h2>${music.title}</h2><div><small>${music.category}</small></div></li>`;
+            });
+
+            const allLi = document.querySelectorAll("li");
+
+            allLi.forEach((li) => {
+                li.addEventListener("click", function (elem) {
+                    const id = parseInt(li.id);
+                    const searchById = dbMusic.find((element) => element.id === id);
+                    lecteur.src = `${config.urlSound}${searchById.sound}`;
+                    lecteur.play();
+                    cover.src = `${config.urlCover}${searchById.cover}`;
+                    if (disque.classList.contains("pause")) {
+                        disque.classList.remove("pause");
+                    }
+
+                    // Supprime la classe clignote de tous les éléments de la playlist
+                    allLi.forEach((item) => {
+                        item.classList.remove("clignote");
+                    });
+
+                    // Ajoute la classe clignote à l'élément de la playlist actuellement sélectionné
+                    li.classList.add("clignote");
+                });
+            });
+        };
+
+        getData();
+
+        btnRandom.addEventListener("click", function () {
+            const allLi = document.querySelectorAll("li");
+            const randomIndex = Math.floor(Math.random() * allLi.length);
+            const randomLi = allLi[randomIndex];
+            const randomMusic = dbMusic[randomIndex]; // Obtenir les données de la musique aléatoire
+            lecteur.src = `${config.urlSound}${randomMusic.sound}`;
+            lecteur.play();
+            cover.src = `${config.urlCover}${randomMusic.cover}`;
+            if (disque.classList.contains("pause")) {
+                disque.classList.remove("pause");
+            }
+            lecteur.currentTime = 0; // Remet la lecture au début de la piste actuelle
+
+            // Supprime la classe clignote de tous les éléments de la playlist
+            allLi.forEach((item) => {
+                item.classList.remove("clignote");
+            });
+
+            // Ajoute la classe clignote à l'élément de la playlist correspondant à la musique aléatoire
+            randomLi.classList.add("clignote");
+        });
+
+        lecteur.addEventListener("ended", function onEnded() {
+            btnRandom.textContent = "Aléatoire"; // Rétablit le libellé d'origine du bouton
+            btnRandom.disabled = false; // Réactive le bouton après la fin de la lecture
+            lecteur.removeEventListener("ended", onEnded); // Supprime l'écouteur d'événements une fois la lecture terminée
+        });
+
+        lecteur.addEventListener("pause", function () {
+            disque.classList.add("pause");
+        });
+
+        lecteur.addEventListener("play", function () {
+            disque.classList.remove("pause");
+        });
+
+        // Ajout du gestionnaire d'événements pour la soumission du formulaire de recherche
+        const formRecherche = document.getElementById("formRecherche");
+        formRecherche.addEventListener("submit", function (event) {
+            event.preventDefault(); // Empêche le rechargement de la page
+            const rechercheInput = document.getElementById("rechercheInput").value.toLowerCase();
+            const allLi = document.querySelectorAll("li");
+            allLi.forEach((li) => {
+                const musicTitle = li.querySelector("h2").textContent.toLowerCase();
+                const musicCategory = li.querySelector("small").textContent.toLowerCase();
+                if (musicTitle.includes(rechercheInput) || musicCategory.includes(rechercheInput)) {
+                    li.style.display = "block"; // Afficher l'élément s'il correspond à la recherche
+                } else {
+                    li.style.display = "none"; // Masquer l'élément s'il ne correspond pas à la recherche
+                }
+            });
+        });
+    </script>
+</body>
+</html>
